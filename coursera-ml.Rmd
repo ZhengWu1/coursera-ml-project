@@ -1,0 +1,58 @@
+---
+title: "Practical Machine Learning Project"
+author: "Zheng Wu"
+date: "June 20, 2015"
+output: html_document
+---
+
+##Loading data and exploratory analysis
+```{r}
+library(caret)
+setwd("~/Documents/coursera/coursera-ml-project/")
+training <- read.csv("./pml-training.csv")
+testing <- read.csv("./pml-testing.csv")
+table(training$classe)
+```
+
+##Removing the first 6 variables as they are not relevant for the prediction
+```{r}
+training <- training[, 7:ncol(training)]
+testing <- testing[, 7:ncol(testing)]
+```
+
+##Some of the variables have more than 97% percent missing values, these variables should also be eliminated before buidling the model
+```{r}
+na.proportion <- apply(training,2,function(x) {
+        count <- 0
+        for (i in 1:length(x)) {
+                d <- x[i]
+                if (is.na(d) || d == "") {
+                        count <- count + 1
+                }
+        }
+        return (as.numeric(count)/length(x))
+        })
+sum(na.proportion > 0.97)
+training <- training[, !na.proportion > 0.97]
+testing <- testing[, !na.proportion > 0.97]
+```
+
+##Model selection
+Since this outcome variable is a five-level factor variable, Random Forest tend to work very good for this type of problem. I also testing using simple decision tree and it did not perform as good as Random Forest.
+
+##Setting up cross validation and train the model
+```{r, cache=TRUE}
+set.seed(32323)
+cvCtrl <- trainControl(method = "repeatedcv", repeats = 1)
+model <- train(classe ~ ., data = training, method = "rf", trControl = cvCtrl)
+print(model)
+```
+##The expected out of sample error would be `r 1- 0.9983691` from 10 fold cross validation
+
+##The confustion matrix of the actual model and the results of the prediction
+```{r}
+predict.training <- predict(model)
+confusionMatrix(predict.training, training$classe)
+predict(model, newdata=testing)
+```
+##The prediction is 100% correct
